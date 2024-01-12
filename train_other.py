@@ -5,8 +5,9 @@ from pathlib import Path
 import hydra
 from datasets import load_dataset
 from omegaconf import DictConfig
-from transformers import AutoTokenizer, DataCollatorForLanguageModeling, TrainingArguments, Trainer, GPT2LMHeadModel, \
-    AutoConfig, EarlyStoppingCallback, GPT2TokenizerFast
+from transformers import AutoTokenizer, DataCollatorForLanguageModeling, TrainingArguments, Trainer, \
+    AutoConfig, EarlyStoppingCallback, AutoModelForCausalLM, GPT2LMHeadModel, GPT2TokenizerFast
+import torch
 
 from preprocess_dataset import SPECIAL_TOKEN
 
@@ -14,7 +15,6 @@ EOL_TOKEN = '<EOL>'
 BOS_TOKEN = '<s>'
 EOS_TOKEN = '</s>'
 UNK_TOKEN = '<unk>'
-
 
 def check_tokens(tokenizer):
     for special in [SPECIAL_TOKEN, EOL_TOKEN, UNK_TOKEN, EOS_TOKEN, BOS_TOKEN]:
@@ -71,7 +71,7 @@ def main(cfg: DictConfig):
     data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
 
     if cfg['model']['is_pretrained']:
-        model = GPT2LMHeadModel.from_pretrained(cfg['model']['hugging_face_model'])
+        model = AutoModelForCausalLM.from_pretrained(cfg['model']['hugging_face_model'])
         model.resize_token_embeddings(len(tokenizer))
     else:
         config = AutoConfig.from_pretrained(cfg['model']['hugging_face_model'],
@@ -82,7 +82,7 @@ def main(cfg: DictConfig):
         model = GPT2LMHeadModel(config)
         model.resize_token_embeddings(len(tokenizer))
 
-    logger.info(f'Checking input embeddings: {model.transformer.wte.weight.shape[0]}, {len(tokenizer)}')
+    #logger.info(f'Checking input embeddings: {model.transformer.wte.weight.shape[0]}, {len(tokenizer)}')
 
     output_dir = os.path.join(cfg['run']['models_folder'], f"{cfg['model']['model_name']}-"
                                                            f"{cfg['dataset']['name']}-"
@@ -93,7 +93,7 @@ def main(cfg: DictConfig):
         per_device_eval_batch_size=cfg['params']['batch_size'],
         evaluation_strategy="epoch",
         logging_strategy="epoch",
-        gradient_accumulation_steps=16,
+        gradient_accumulation_steps=8,
         num_train_epochs=cfg['params']['epochs'],
         weight_decay=0.1,
         learning_rate=1e-3,

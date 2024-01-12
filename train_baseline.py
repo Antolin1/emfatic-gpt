@@ -30,12 +30,8 @@ def main(cfg: DictConfig):
     dataset = load_dataset("text", data_files={"train": os.path.join(cfg['dataset']['path'], cfg['run']['train_file']),
                                                "test": os.path.join(cfg['dataset']['path'], cfg['run']['test_file']),
                                                "val": os.path.join(cfg['dataset']['path'], cfg['run']['val_file'])})
-    if not cfg['model']['local_tokenizer']:
-        tokenizer = AutoTokenizer.from_pretrained(cfg['model']['hugging_face_model'], bos_token=BOS_TOKEN,
-                                                  eos_token=EOS_TOKEN, pad_token=EOS_TOKEN,
-                                                  unk_token=UNK_TOKEN)
-    else:
-        tokenizer = GPT2TokenizerFast(vocab_file=os.path.join(cfg['run']['tokenizers_folder'],
+
+    tokenizer = GPT2TokenizerFast(vocab_file=os.path.join(cfg['run']['tokenizers_folder'],
                                                               f"{cfg['model']['tokenizer_dir']}"
                                                               f"-{cfg['dataset']['level']}",
                                                               'vocab.json'),
@@ -45,7 +41,7 @@ def main(cfg: DictConfig):
                                                                'merges.txt'),
                                       bos_token=BOS_TOKEN, eos_token=EOS_TOKEN,
                                       pad_token=EOS_TOKEN, unk_token=UNK_TOKEN)
-        tokenizer.add_tokens([UNK_TOKEN, EOS_TOKEN, BOS_TOKEN])
+    tokenizer.add_tokens([UNK_TOKEN, EOS_TOKEN, BOS_TOKEN])
     tokenizer.add_tokens([SPECIAL_TOKEN, EOL_TOKEN])
 
     check_tokens(tokenizer)
@@ -70,17 +66,13 @@ def main(cfg: DictConfig):
 
     data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
 
-    if cfg['model']['is_pretrained']:
-        model = GPT2LMHeadModel.from_pretrained(cfg['model']['hugging_face_model'])
-        model.resize_token_embeddings(len(tokenizer))
-    else:
-        config = AutoConfig.from_pretrained(cfg['model']['hugging_face_model'],
+    config = AutoConfig.from_pretrained(cfg['model']['hugging_face_model'],
                                             vocab_size=len(tokenizer),
                                             n_ctx=context_length,
                                             bos_token_id=tokenizer.bos_token_id,
                                             eos_token_id=tokenizer.eos_token_id)
-        model = GPT2LMHeadModel(config)
-        model.resize_token_embeddings(len(tokenizer))
+    model = GPT2LMHeadModel(config)
+    model.resize_token_embeddings(len(tokenizer))
 
     logger.info(f'Checking input embeddings: {model.transformer.wte.weight.shape[0]}, {len(tokenizer)}')
 
@@ -127,3 +119,4 @@ def main(cfg: DictConfig):
 
 if __name__ == '__main__':
     main()
+
